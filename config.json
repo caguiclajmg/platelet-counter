@@ -1,0 +1,8 @@
+{
+    "port": 80,
+    "secret": "platelet-counter",
+    "domain": "platelets.fun",
+    "tokenExpiry": "5m",
+    "rateLimit": "30s",
+    "countDeltaLimit": 100
+}
