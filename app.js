@@ -85,7 +85,5 @@ router.get('/token', (req, res) => {
     responseSuccess(res, {token: token});
 });
 
-app.set('port', process.env.PORT || 5000);
 app.use('/', router);
-app.listen(app.get('port'));
-console.log('platelet-counter running on port ' + app.get('port'));
+app.listen(process.env.PORT || 5000);
