@@ -1,11 +1,7 @@
-'use strict';
-
 const express = require('express');
 const bodyParser = require('body-parser');
 const jwt = require('jsonwebtoken');
 const ms = require('ms');
-
-const config = require('./config');
 
 const app = express();
 const router = express.Router();
@@ -15,7 +11,7 @@ var tokens = {};
 
 function purgeExpiredTokens() {
     Object.entries(tokens).forEach(([key, value]) => {
-        if(Date.now() <= value.last + ms(config.tokenExpiry)) {
+        if(Date.now() <= value.last + ms(process.env.TOKEN_EXPIRY)) {
             delete tokens[key];
         }
     });
@@ -66,7 +62,7 @@ router.post('/count', (req, res) => {
     } else if(!(token in tokens)) {
         responseError(res, 403, 'Unauthorized');
         return;
-    } else if(Date.now() < tokens[token].last + ms(config.rateLimit)) {
+    } else if(Date.now() < tokens[token].last + ms(process.env.LIMIT_DELTA_INTERVAL)) {
         responseError(res, 429, 'Too many requests');
         return;
     } else if(isNaN(countDelta)) {
@@ -75,21 +71,21 @@ router.post('/count', (req, res) => {
     }
 
     tokens[token].last = Date.now();
-    count += (countDelta = Math.min(countDelta, config.countDeltaLimit));
+    count += (countDelta = Math.min(countDelta, process.env.LIMIT_DELTA_COUNT));
 
     responseSuccess(res, {count: count});
     return;
 });
 
 router.get('/token', (req, res) => {
-    const token = jwt.sign({iss: config.domain}, config.secret);
+    const token = jwt.sign({iss: process.env.DOMAIN}, process.env.SECRET);
 
-    tokens[token] = {last: Date.now() - ms(config.rateLimit)};
+    tokens[token] = {last: Date.now() - ms(process.env.RATE_LIMIT)};
 
     responseSuccess(res, {token: token});
 });
 
-app.set('port', process.env.PORT || config.port);
+app.set('port', process.env.PORT || 5000);
 app.use('/', router);
 app.listen(app.get('port'));
 console.log('platelet-counter running on port ' + app.get('port'));
