@@ -63,6 +63,10 @@ app.use(function(req, res, next) {
     next();
 });
 
+router.get('/', (req, res) => {
+    res.redirect('https://platelets.fun');
+});
+
 router.get('/count', (req, res) => {
     responseSuccess(res, {count: count});
 });
