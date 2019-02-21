@@ -6,13 +6,20 @@ const ms = require('ms');
 const app = express();
 const router = express.Router();
 
-var count = 0;
-var tokens = {};
+const tokens = {};
+
+let count = 0;
 
 function purgeExpiredTokens() {
-    Object.entries(tokens).forEach(([key, value]) => {
-        if(Date.now() <= value.last + ms(process.env.TOKEN_EXPIRY)) {
-            delete tokens[key];
+    Object.entries(tokens).forEach(([token, tokenData]) => {
+        try {
+            if(!jwt.verify(token, process.env.SECRET, {
+                issuer: process.env.DOMAIN
+            })) {
+                delete tokens[token];
+            }
+        } catch(e) {
+            delete tokens[token];
         }
     });
 }
@@ -56,13 +63,28 @@ router.post('/count', (req, res) => {
     if(method.localeCompare('Bearer')) {
         responseError(res, 400, 'Unsuppoerted authentication scheme');
         return;
-    } else if(!token) {
+    }
+
+    if(!token) {
         responseError(res, 401, 'Missing Bearer Token');
         return;
-    } else if(!(token in tokens)) {
+    }
+
+    if(!(token in tokens)) {
         responseError(res, 403, 'Unauthorized');
         return;
-    } else if(Date.now() < tokens[token].last + ms(process.env.LIMIT_DELTA_INTERVAL)) {
+    }
+
+    try {
+        const payload = jwt.verify(token, process.env.SECRET, {
+            issuer: process.env.DOMAIN
+        });
+    } catch(e) {
+        responseError(res, 403, 'Unauthorized');
+        return;
+    }
+
+    if(Date.now() < tokens[token].last + ms(process.env.LIMIT_DELTA_INTERVAL)) {
         responseError(res, 429, 'Too many requests');
         return;
     } else if(isNaN(countDelta)) {
@@ -78,12 +100,29 @@ router.post('/count', (req, res) => {
 });
 
 router.get('/token', (req, res) => {
-    const token = jwt.sign({iss: process.env.DOMAIN}, process.env.SECRET);
+    if(!('payload' in req.query)) {
+        responseError(res, 400, 'Missing payload parameter');
+        return;
+    }
 
-    tokens[token] = {last: Date.now() - ms(process.env.LIMIT_DELTA_INTERVAL)};
+    const token = jwt.sign({
+        payload: req.query.payload,
+        created_at: Date.now(),
+    }, process.env.SECRET, {
+        expiresIn: process.env.TOKEN_EXPIRY,
+        issuer: process.env.DOMAIN
+    });
 
-    responseSuccess(res, {token: token});
+    tokens[token] = {
+        last: Date.now() - ms(process.env.LIMIT_DELTA_INTERVAL)
+    };
+
+    responseSuccess(res, {
+        token: token
+    });
 });
+
+setInterval(purgeExpiredTokens, 5 * 1000);
 
 app.use('/', router);
 app.listen(process.env.PORT || 5000);
