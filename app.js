@@ -80,7 +80,7 @@ router.post('/count', (req, res) => {
 router.get('/token', (req, res) => {
     const token = jwt.sign({iss: process.env.DOMAIN}, process.env.SECRET);
 
-    tokens[token] = {last: Date.now() - ms(process.env.RATE_LIMIT)};
+    tokens[token] = {last: Date.now() - ms(process.env.LIMIT_DELTA_INTERVAL)};
 
     responseSuccess(res, {token: token});
 });
