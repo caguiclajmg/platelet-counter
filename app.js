@@ -38,6 +38,23 @@ function responseSuccess(res, data) {
     return res;
 }
 
+process.env = Object.assign({}, {
+    'TOKEN_EXPIRY': '5m',
+    'LIMIT_DELTA_INTERVAL': '30s',
+    'LIMIT_DELTA_COUNT': 100,
+    'PURGE_FREQUENCY': '30s'
+}, process.env);
+
+if(!process.env.SECRET) {
+    console.error('Missing required configuration parameter: SECRET');
+    exit(-1);
+}
+
+if(!process.env.DOMAIN) {
+    console.error('Missing required configuration parameter: DOMAIN');
+    exit(-1);
+}
+
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(bodyParser.json());
 app.use(function(req, res, next) {
@@ -122,7 +139,7 @@ router.get('/token', (req, res) => {
     });
 });
 
-setInterval(purgeExpiredTokens, 5 * 1000);
+setInterval(purgeExpiredTokens, ms(process.env.PURGE_FREQUENCY));
 
 app.use('/', router);
 app.listen(process.env.PORT || 5000);
